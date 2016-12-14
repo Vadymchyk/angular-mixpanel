@@ -20,7 +20,7 @@
  */
 angular.module('analytics.mixpanel', [])
     .provider('$mixpanel', function () {
-        var apiKey, superProperties;
+      var apiKey, superProperties;
 
       /**
        * Init the mixpanel global
