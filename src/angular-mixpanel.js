@@ -20,7 +20,7 @@
  */
 angular.module('analytics.mixpanel', [])
     .provider('$mixpanel', function () {
-        var apiKey, superProperties;
+        var apiKey, superProperties, enabled = true;
 
         /**
          * Init the mixpanel global
@@ -30,10 +30,10 @@ angular.module('analytics.mixpanel', [])
                 throw 'Global `mixpanel` not available. Did you forget to include the library on the page?';
             }
 
-            mixpanel.init(apiKey);
+            if (enabled) mixpanel.init(apiKey);
 
             waitTillAsyncApiLoaded(function () {
-                if (superProperties) mixpanel.register(superProperties);
+                if (superProperties && enabled) mixpanel.register(superProperties);
             });
         }
 
@@ -60,19 +60,36 @@ angular.module('analytics.mixpanel', [])
          * @returns {Function} a function that will lookup and dispatch a call to the window.mixpanel object
          */
         function callMixpanelFn(name) {
-            return function () {
-                var fn = window.mixpanel,
-                    parts = name.split('.'),
-                    scope, i;
+            if (enabled)
+                return function () {
+                    var fn = window.mixpanel,
+                        parts = name.split('.'),
+                        scope, i;
 
-                for (i = 0; i < parts.length; i++) {
-                    scope = fn;
-                    fn = fn[parts[i]];
-                }
+                    for (i = 0; i < parts.length; i++) {
+                        scope = fn;
+                        fn = fn[parts[i]];
+                    }
 
-                return fn.apply(scope, arguments);
-            }
+                    return fn.apply(scope, arguments);
+                };
+            else
+                return function () {
+
+                };
         }
+
+        /**
+         * Disable Mixpanel. This can be done via a provider config.
+         *
+         * @param disabled Mixpanel
+         */
+        this.disable = function (disabled) {
+            if (typeof disabled !== 'boolean') return enabled;
+
+            enabled = !disabled;
+            init();
+        };
 
         /**
          * Get or set the Mixpanel API key. This can be done via a provider config.
