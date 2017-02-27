@@ -20,20 +20,20 @@
  */
 angular.module('analytics.mixpanel', [])
     .provider('$mixpanel', function () {
-        var apiKey, superProperties, enabled = true;
+        var apiKey, superProperties, enabled = false;
 
         /**
          * Init the mixpanel global
          */
-        function init() {
+        function initMP() {
             if (!Object.prototype.hasOwnProperty.call(window, 'mixpanel')) {
                 throw 'Global `mixpanel` not available. Did you forget to include the library on the page?';
             }
 
-            if (enabled) mixpanel.init(apiKey);
-
+            enabled = true;
             waitTillAsyncApiLoaded(function () {
-                if (superProperties && enabled) mixpanel.register(superProperties);
+                mixpanel.init(apiKey);
+                if (superProperties) mixpanel.register(superProperties);
             });
         }
 
@@ -60,36 +60,20 @@ angular.module('analytics.mixpanel', [])
          * @returns {Function} a function that will lookup and dispatch a call to the window.mixpanel object
          */
         function callMixpanelFn(name) {
-            if (enabled)
-                return function () {
-                    var fn = window.mixpanel,
-                        parts = name.split('.'),
-                        scope, i;
+            return function () {
+                if (!enabled) return false;
+                var fn = window.mixpanel,
+                    parts = name.split('.'),
+                    scope, i;
 
-                    for (i = 0; i < parts.length; i++) {
-                        scope = fn;
-                        fn = fn[parts[i]];
-                    }
+                for (i = 0; i < parts.length; i++) {
+                    scope = fn;
+                    fn = fn[parts[i]];
+                }
 
-                    return fn.apply(scope, arguments);
-                };
-            else
-                return function () {
-
-                };
+                return fn.apply(scope, arguments);
+            };
         }
-
-        /**
-         * Disable Mixpanel. This can be done via a provider config.
-         *
-         * @param disabled Mixpanel
-         */
-        this.disable = function (disabled) {
-            if (typeof disabled !== 'boolean') return enabled;
-
-            enabled = !disabled;
-            init();
-        };
 
         /**
          * Get or set the Mixpanel API key. This can be done via a provider config.
@@ -100,7 +84,6 @@ angular.module('analytics.mixpanel', [])
             if (!key) return apiKey;
 
             apiKey = key;
-            init();
         };
 
         /**
@@ -121,6 +104,7 @@ angular.module('analytics.mixpanel', [])
             // This is a bit of a gross hack but here we dynamically call the mixpanel functions against the
             // window.mixpanel object as we can't be sure when the window reference will be updated.
             return {
+                initMP: initMP,
                 init: callMixpanelFn('init'),
                 push: callMixpanelFn('push'),
                 disable: callMixpanelFn('disable'),
